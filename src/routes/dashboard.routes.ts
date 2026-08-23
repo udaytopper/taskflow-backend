@@ -1,0 +1,8 @@
+import { Router } from "express";
+import { prisma } from "../config/db";
+import { authenticate } from "../middleware/auth";
+import { AppError } from "../utils/app-error";
+
+export const dashboardRouter=Router();dashboardRouter.use(authenticate);
+dashboardRouter.get("/projects/:projectId",async(req,res,next)=>{try{const project=await prisma.project.findFirst({where:{id:req.params.projectId,orgId:req.auth!.orgId,deletedAt:null}});if(!project)throw new AppError(403,"FORBIDDEN","Forbidden");const [byStatus,byPriority,overdue]=await Promise.all([prisma.task.groupBy({by:["status"],where:{orgId:req.auth!.orgId,projectId:project.id,deletedAt:null},_count:true}),prisma.task.groupBy({by:["priority"],where:{orgId:req.auth!.orgId,projectId:project.id,deletedAt:null},_count:true}),prisma.task.count({where:{orgId:req.auth!.orgId,projectId:project.id,deletedAt:null,dueDate:{lt:new Date()},status:{not:"DONE"}}})]);res.json({projectId:project.id,byStatus,byPriority,overdue});}catch(e){next(e);}});
+dashboardRouter.get("/projects/:projectId/activity",async(req,res,next)=>{try{const project=await prisma.project.findFirst({where:{id:req.params.projectId,orgId:req.auth!.orgId,deletedAt:null}});if(!project)throw new AppError(403,"FORBIDDEN","Forbidden");const taskIds=(await prisma.task.findMany({where:{projectId:project.id,orgId:req.auth!.orgId},select:{id:true}})).map(t=>t.id);res.json(await prisma.activityLog.findMany({where:{orgId:req.auth!.orgId,OR:[{entityType:"project",entityId:project.id},{entityType:"task",entityId:{in:taskIds}}]},orderBy:{createdAt:"desc"},take:100}));}catch(e){next(e);}});
