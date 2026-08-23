@@ -1,0 +1,58 @@
+openapi: 3.0.3
+info:
+  title: TaskFlow API
+  version: 1.0.0
+  description: Multi-tenant project management API. Protected operations derive tenant context from the authenticated JWT and never from request bodies.
+servers:
+  - url: http://localhost:3000
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    Error:
+      type: object
+      properties: { error: {type: string}, code: {type: string}, details: {type: object} }
+paths:
+  /health:
+    get: { summary: Health check, responses: {'200': {description: Healthy}} }
+  /auth/register:
+    post: { summary: Register user and organization, responses: {'201': {description: Created}, '400': {description: Validation error}} }
+  /auth/login:
+    post: { summary: Login, responses: {'200': {description: Tokens}, '401': {description: Invalid credentials}} }
+  /auth/refresh:
+    post: { summary: Rotate refresh token, responses: {'200': {description: Tokens}} }
+  /auth/logout:
+    post: { summary: Revoke refresh token, responses: {'204': {description: Logged out}} }
+  /organizations/current:
+    get: { security: [{bearerAuth: []}], summary: Current organization and members, responses: {'200': {description: Organization}} }
+    patch: { security: [{bearerAuth: []}], summary: Update organization as admin, responses: {'200': {description: Updated}} }
+  /organizations/current/members:
+    post: { security: [{bearerAuth: []}], summary: Add or update member as admin, responses: {'201': {description: Member saved}} }
+  /projects:
+    get: { security: [{bearerAuth: []}], summary: List tenant projects, responses: {'200': {description: Projects}} }
+    post: { security: [{bearerAuth: []}], summary: Create project, responses: {'201': {description: Project}} }
+  /projects/{id}:
+    get: { security: [{bearerAuth: []}], summary: Get tenant project, parameters: [{in: path,name: id,required: true,schema: {type: string}}], responses: {'200': {description: Project}, '403': {description: Cross-tenant or forbidden}} }
+    patch: { security: [{bearerAuth: []}], summary: Update project, parameters: [{in: path,name: id,required: true,schema: {type: string}}], responses: {'200': {description: Updated}} }
+    delete: { security: [{bearerAuth: []}], summary: Soft-delete project as admin, parameters: [{in: path,name: id,required: true,schema: {type: string}}], responses: {'204': {description: Deleted}} }
+  /projects/{projectId}/tasks:
+    post: { security: [{bearerAuth: []}], summary: Create task in tenant project, parameters: [{in: path,name: projectId,required: true,schema: {type: string}}], responses: {'201': {description: Task}} }
+  /tasks:
+    get: { security: [{bearerAuth: []}], summary: Filtered cursor-paginated task list, responses: {'200': {description: Tasks}} }
+  /tasks/search:
+    get: { security: [{bearerAuth: []}], summary: PostgreSQL full-text search, responses: {'200': {description: Search results}} }
+  /tasks/{id}:
+    get: { security: [{bearerAuth: []}], summary: Get task, responses: {'200': {description: Task}, '403': {description: Forbidden}} }
+    patch: { security: [{bearerAuth: []}], summary: Update task, responses: {'200': {description: Updated}} }
+    delete: { security: [{bearerAuth: []}], summary: Soft-delete task, responses: {'204': {description: Deleted}} }
+  /tasks/{id}/assign:
+    post: { security: [{bearerAuth: []}], summary: Assign organization member and enqueue notification, responses: {'201': {description: Assignment}} }
+  /tasks/{id}/comments:
+    get: { security: [{bearerAuth: []}], summary: List comments, responses: {'200': {description: Comments}} }
+    post: { security: [{bearerAuth: []}], summary: Add comment, responses: {'201': {description: Comment}} }
+  /tasks/{id}/timeline:
+    get: { security: [{bearerAuth: []}], summary: Task activity timeline, responses: {'200': {description: Activity}} }
+  /jobs/{id}:
+    get: { security: [{bearerAuth: []}], summary: Tenant-protected notification job status, responses: {'200': {description: Job state}} }
+  /dashboard/projects/{projectId}:
+    get: { security: [{bearerAuth: []}], summary: Project task dashboard, responses: {'200': {description: Dashboard}} }
